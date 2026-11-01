@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 PORTAL_URL = "https://cmsys.eng.rizvi.edu.in"
 LOGIN_URL = f"{PORTAL_URL}/login"
-DASHBOARD_URL = f"{PORTAL_URL}/dashboard"
+DASHBOARD_URL = f"{PORTAL_URL}/student/dashboard"
 PORTAL_EMAIL = os.environ.get("PORTAL_EMAIL")
 PORTAL_PASSWORD = os.environ.get("PORTAL_PASSWORD")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
