@@ -21,7 +21,10 @@ status_lock = threading.Lock()
 status_data = {"status": "Idle", "last_check": "Never", "remaining": 0}
 
 session = requests.Session()
-session.headers.update({"User-Agent": "Mozilla/5.0"})
+session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Referer": LOGIN_URL
+})
 
 def send_telegram_alert(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
@@ -34,12 +37,29 @@ def send_telegram_alert(message):
 
 def login():
     try:
-        payload = {"username": PORTAL_EMAIL, "password": PORTAL_PASSWORD}
+        # Pehle login page get karke cookies aur hidden fields capture karo
+        res_get = session.get(LOGIN_URL, timeout=10)
+        soup = BeautifulSoup(res_get.text, 'html.parser')
+        
+        payload = {
+            "username": PORTAL_EMAIL,
+            "password": PORTAL_PASSWORD
+        }
+        
+        # Agar page par koi CSRF token ya hidden input hai toh use bhi utha lo
+        for input_tag in soup.find_all("input"):
+            name = input_tag.get("name")
+            if name and name not in ["username", "password"]:
+                payload[name] = input_tag.get("value", "")
+
         res = session.post(LOGIN_URL, data=payload, timeout=10)
         if "dashboard" in res.url.lower() or res.status_code == 200:
-            return True
-    except:
-        pass
+            # Verify karo ki sach mein dashboard khula ya login page par hi ho
+            check_res = session.get(DASHBOARD_URL, timeout=10)
+            if "/login" not in check_res.url.lower():
+                return True
+    except Exception as e:
+        print(f"Login Error: {e}")
     return False
 
 def monitor_loop():
@@ -118,7 +138,7 @@ HTML_PAGE = """
 </head>
 <body>
     <h2>Attendance Agent - 15s Full Background</h2>
-    <p style="color: #aaa;">Max 15 sec pe auto refresh | Max 10 min</p>
+    <p style="color: #aaa;">Max 15 sec pe auto refresh | Max 15 min</p>
     <button class="start" onclick="fetch('/start', {method: 'POST'}).then(r => r.json()).then(d => alert(d.message))">Start Monitoring</button><br>
     <button class="stop" onclick="fetch('/stop', {method: 'POST'}).then(r => r.json()).then(d => alert(d.message))">Stop Monitoring</button>
     <div id="status">Status: Idle</div>
@@ -148,7 +168,7 @@ def start():
     if monitor_event.is_set():
         return jsonify({"success": False, "message": "Already Running"})
     if not login():
-        return jsonify({"success": False, "message": "Login Failed. Check credentials."})
+        return jsonify({"success": False, "message": "Login Failed. Check credentials or portal security."})
     monitor_event.set()
     threading.Thread(target=monitor_loop, daemon=True).start()
     return jsonify({"success": True, "message": "Monitoring Started for 15 min - 15s interval"})
