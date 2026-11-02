@@ -44,7 +44,7 @@ def login():
 
 def monitor_loop():
     start_time = time.time()
-    MAX_DURATION = 900  # 15 minutes (900 seconds)
+    MAX_DURATION = 900  # 15 minutes
     
     while monitor_event.is_set():
         elapsed = time.time() - start_time
@@ -86,7 +86,7 @@ def monitor_loop():
             else:
                 with status_lock:
                     status_data["last_check"] = time.strftime("%H:%M:%S")
-                time.sleep(15)  # 15 seconds gap between checks
+                time.sleep(15)
                 
         except:
             with status_lock:
@@ -102,7 +102,10 @@ def monitor_loop():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        return f"Template Error: {str(e)}"
 
 @app.route('/start', methods=['POST'])
 def start():
@@ -126,4 +129,4 @@ def stop():
 def status():
     with status_lock:
         return jsonify(status_data)
-        
+                
