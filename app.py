@@ -52,7 +52,7 @@ def monitor_loop():
                 login()
                 time.sleep(2)
                 continue
-            soup = BeautifulSoup(res.text, \'html.parser\')
+            soup = BeautifulSoup(res.text, 'html.parser\')
             text = soup.get_text().lower()
             if "mark your attendance" in text or "mark attendance" in text:
                 with status_lock: status_data["status"] = "Attendance Button Detected!"
