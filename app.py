@@ -3,7 +3,7 @@ import time
 import threading
 import requests
 from bs4 import BeautifulSoup
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template_string, jsonify
 
 app = Flask(__name__)
 
@@ -100,12 +100,48 @@ def monitor_loop():
         status_data["status"] = "Idle"
         status_data["remaining"] = 0
 
+HTML_PAGE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Monitor</title>
+    <style>
+        body { background: #0F0F0F; color: #FFF; font-family: sans-serif; text-align: center; padding: 20px; }
+        button { padding: 15px 28px; border: none; border-radius: 12px; font-size: 18px; margin: 10px; width: 80%; max-width: 320px; cursor: pointer; }
+        .start { background: #00C853; color: white; }
+        .stop { background: #D50000; color: white; }
+        #status { margin-top: 20px; padding: 18px; border: 1px solid #333; border-radius: 12px; font-size: 18px; background: #1E1E1E; }
+        #timer { color: #00E676; font-size: 16px; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <h2>Attendance Agent - 15s Full Background</h2>
+    <p style="color: #aaa;">Max 15 sec pe auto refresh | Max 10 min</p>
+    <button class="start" onclick="fetch('/start', {method: 'POST'}).then(r => r.json()).then(d => alert(d.message))">Start Monitoring</button><br>
+    <button class="stop" onclick="fetch('/stop', {method: 'POST'}).then(r => r.json()).then(d => alert(d.message))">Stop Monitoring</button>
+    <div id="status">Status: Idle</div>
+    <div id="timer"></div>
+    <script>
+        setInterval(async () => {
+            let res = await fetch('/status');
+            let d = await res.json();
+            document.getElementById('status').innerText = `Status: ${d.status} | Last Check: ${d.last_check}`;
+            if (d.remaining > 0) {
+                let m = Math.floor(d.remaining / 60);
+                let s = d.remaining % 60;
+                document.getElementById('timer').innerText = `Auto Stop in: ${m}:${s.toString().padStart(2, '0')}`;
+            } else { document.getElementById('timer').innerText = ""; }
+        }, 3000);
+    </script>
+</body>
+</html>
+"""
+
 @app.route('/')
 def index():
-    try:
-        return render_template('index.html')
-    except Exception as e:
-        return f"Template Error: {str(e)}"
+    return render_template_string(HTML_PAGE)
 
 @app.route('/start', methods=['POST'])
 def start():
@@ -129,4 +165,4 @@ def stop():
 def status():
     with status_lock:
         return jsonify(status_data)
-                
+        
