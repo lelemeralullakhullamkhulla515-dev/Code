@@ -37,29 +37,37 @@ def send_telegram_alert(message):
 
 def login():
     try:
-        # Pehle login page get karke cookies aur hidden fields capture karo
         res_get = session.get(LOGIN_URL, timeout=10)
         soup = BeautifulSoup(res_get.text, 'html.parser')
         
-        payload = {
-            "username": PORTAL_EMAIL,
-            "password": PORTAL_PASSWORD
-        }
+        inputs = soup.find_all("input")
+        payload = {}
         
-        # Agar page par koi CSRF token ya hidden input hai toh use bhi utha lo
-        for input_tag in soup.find_all("input"):
-            name = input_tag.get("name")
-            if name and name not in ["username", "password"]:
-                payload[name] = input_tag.get("value", "")
+        for tag in inputs:
+            name = tag.get("name")
+            if name:
+                val = tag.get("value", "")
+                lower_name = name.lower()
+                if any(k in lower_name for k in ["user", "email", "login", "id", "username"]):
+                    payload[name] = PORTAL_EMAIL
+                elif any(k in lower_name for k in ["pass", "pwd", "secret", "password"]):
+                    payload[name] = PORTAL_PASSWORD
+                else:
+                    payload[name] = val
+                    
+        # Fallback fields if not matched
+        if not any(v == PORTAL_EMAIL for v in payload.values()):
+            payload["username"] = PORTAL_EMAIL
+        if not any(v == PORTAL_PASSWORD for v in payload.values()):
+            payload["password"] = PORTAL_PASSWORD
 
         res = session.post(LOGIN_URL, data=payload, timeout=10)
-        if "dashboard" in res.url.lower() or res.status_code == 200:
-            # Verify karo ki sach mein dashboard khula ya login page par hi ho
-            check_res = session.get(DASHBOARD_URL, timeout=10)
-            if "/login" not in check_res.url.lower():
-                return True
+        
+        check_res = session.get(DASHBOARD_URL, timeout=10)
+        if "/login" not in check_res.url.lower():
+            return True
     except Exception as e:
-        print(f"Login Error: {e}")
+        print(f"Login Exception: {e}")
     return False
 
 def monitor_loop():
